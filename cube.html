@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title></title>
+	</head>
+	<body>
+		<canvas width="570" height="570" id="my_Canvas"></canvas>
+	</body>
+	<script>
+		var canvas=document.getElementById("my_Canvas");
+		var gl=canvas.getContext("webgl");
+		
+		var vertexSource="attribute vec3 vertex_position;"
+		+"void main(){gl_Position=vec4(vertex_position,2);}";
+		var fragSource="void main(){gl_FragColor=vec4(1.0, 0, 0, 1);}"
+		
+		var shaderProgram=initProgram(gl,vertexSource,fragSource);
+		
+		var position=[
+			0.5,0.5,0.5,
+			0.5,-0.5,0.5,
+			-0.5,-0.5,0.5,
+			-0.5,0.5,0.5,
+			0.5,0.5,-0.5,
+			0.5,-0.5,-0.5,
+			-0.5,-0.5,-0.5,
+			-0.5,0.5,-0.5,
+		]
+		var indices=[
+			0, 1, 2, 0,2,3,
+			0,1,4,1,4,5,
+			4,5,7,5,6,7,
+			2,3,7,2,6,7,
+			1,2,5,1,2,6,
+			0,3,4,3,4,7,
+			
+		]
+		var vertex_buffer=gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER,vertex_buffer);
+		gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(position),gl.STATIC_DRAW);
+		
+		var frag_buffer=gl.createBuffer();
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,frag_buffer);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(indices),gl.STATIC_DRAW);
+		
+		var aVertexPosition = gl.getAttribLocation(shaderProgram, 'vertex_position');
+		gl.vertexAttribPointer(aVertexPosition,3,gl.FLOAT,false,0,0);
+		gl.enableVertexAttribArray(aVertexPosition);
+		
+		gl.clearColor(0,0,0,1);
+		gl.clear(gl.COLOR_BUFFER_BIT);
+		gl.drawElements(gl.TRIANGLES,indices.length,gl.UNSIGNED_SHORT,0);
+		
+		function initProgram(gl,vertexSource,fragSource){
+			var vertexShader=createShader(gl,gl.VERTEX_SHADER,vertexSource);
+			var fragShader=createShader(gl,gl.FRAGMENT_SHADER,fragSource);
+			var shaderProgram=gl.createProgram();
+			gl.attachShader(shaderProgram,vertexShader);
+			gl.attachShader(shaderProgram,fragShader);
+			gl.linkProgram(shaderProgram);
+			if(!gl.getProgramParameter(shaderProgram,gl.LINK_STATUS)){
+				console.log("fail"+gl.getProgramInfoLog(shaderProgram))
+				gl.deleteProgram(shaderProgram);
+				return null;
+			}
+			console.log("success")
+			gl.useProgram(shaderProgram);
+			return shaderProgram;
+		}
+		function createShader(gl,type,source){
+			var shader=gl.createShader(type);
+			gl.shaderSource(shader,source);
+			gl.compileShader(shader);
+			if(!gl.getShaderParameter(shader,gl.COMPILE_STATUS)){
+				console.log("fail"+gl.getShaderInfoLog(shader))
+				gl.deleteShader(shader);
+				
+				return null;
+			}
+			return shader;
+		}
+	</script>
+</html>

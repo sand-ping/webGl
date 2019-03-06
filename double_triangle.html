@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title></title>
+	</head>
+	<body>
+		<canvas width="570" height="570" id="my_Canvas"></canvas>
+	</body>
+	<script>
+		var canvas = document.getElementById("my_Canvas");
+		var gl = canvas.getContext("webgl");
+
+		var vertexSource = "attribute vec4 aVertexPosition;attribute vec4 aVertexColor;varying lowp vec4 vColor;" +
+			"void main(){gl_Position=aVertexPosition;vColor = aVertexColor;}";
+		var fragmentSource = "varying lowp vec4 vColor;void main(){gl_FragColor=vColor;}";
+
+		var shaderProgram = initShaderProgram(gl, vertexSource, fragmentSource);
+		//顶点数据
+		var vertices = [-0.2, 0,
+			0, -0.5, -0.4, -0.5,
+			0.4, 0,
+			0, -0.5,
+			0.4, -0.5,
+		];
+		//索引数据
+		var indices = [0, 1, 2, 2, 0, 3];
+		var vertexBuffer = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+		var Index_Buffer = gl.createBuffer();
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Index_Buffer);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+
+		//获取属性的位置
+		var aVertexPosition = gl.getAttribLocation(shaderProgram, 'aVertexPosition');
+		//分配缓冲对象的属性变量
+		//参数1它指定一个属性变量的存储位置。根据这个方案，必须通过由getAttribLocation()方法返回的值
+		//参数2代表每个顶点需要几个向量（几维）；参数3代表数据类型；参数4是一个布尔值。如果为真，非浮动数据被归一化到[0,1]。否则，它被归一化到[-1,1]。；
+		//参数5指定不同顶点数据元素之间的字节数，或默认为零步幅；
+		//参数6它指定在缓冲器对象，以指示数据从顶点的哪个存储字节偏移(字节)。如果数据是从开始(beginning)存储的，偏移量(offset)为0。
+		gl.vertexAttribPointer(aVertexPosition, 2, gl.FLOAT, false, 0, 0);
+		//激活顶点着色器属性来访问缓冲对象的顶点着色器
+		gl.enableVertexAttribArray(aVertexPosition);
+		
+		var colors = [
+			1.0, 1.0, 1.0, 1.0, // 白色
+			1.0, 0.0, 0.0, 1.0, // 红色
+			0.0, 1.0, 0.0, 1.0, // 绿色
+			0.0, 0.0, 1.0, 1.0 // 蓝色
+		];
+		squareVerticesColorBuffer = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesColorBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+		vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
+  	gl.vertexAttribPointer(vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
+		gl.enableVertexAttribArray(vertexColorAttribute);
+
+		var red = 210;
+		var green = 138;
+		var blue = 138;
+		// 清除指定<画布>的颜色为此颜色
+		gl.clearColor(red / 255, green / 255, blue / 255, 1.0);
+
+		// 清空 <canvas>
+		gl.clear(gl.COLOR_BUFFER_BIT);
+		//使用数组之间绘制。参数1绘制类型；参数2指定第几个元素开始；参数3使用几个点
+		//gl.drawArrays(gl.TRIANGLE_STRIP, 0, 6);
+		//使用索引进行绘制。参数1绘制类型；参数2绘制数量；参数3数据类型；参数4第几个开始
+		gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
+
+		//创建着色器程序
+		function initShaderProgram(gl, vsSource, fsSource) {
+			var vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource);
+			var fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fsSource);
+
+			var shaderProgram = gl.createProgram();
+			gl.attachShader(shaderProgram, vertexShader);
+			gl.attachShader(shaderProgram, fragmentShader);
+			gl.linkProgram(shaderProgram);
+			if(!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+				console.log("error:" + gl.getProgramInfoLog())
+				return null;
+			}
+			gl.useProgram(shaderProgram);
+			return shaderProgram;
+		}
+
+		//创建着色器
+		function loadShader(gl, type, source) {
+			var shader = gl.createShader(type);
+			gl.shaderSource(shader, source);
+			gl.compileShader(shader);
+			if(!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+				console.log("error:" + gl.getShaderInfoLog(shader));
+				gl.deleteShader(shader)
+				return null;
+			}
+			return shader;
+		}
+	</script>
+
+</html>

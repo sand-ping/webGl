@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title></title>
+	</head>
+	<body>
+		<canvas width="570" height="570" id="my_Canvas"></canvas>
+	</body>
+	
+	<script>
+		var canvas = document.getElementById("my_Canvas");
+		var gl = canvas.getContext("webgl");
+		var vertexSource = "attribute vec3 vertex_position;" +
+			"attribute vec4 vertex_color;" +
+			"uniform vec4 translation;" +
+			"varying lowp vec4 vColor;" +
+			'uniform mat4 Pmatrix;'+
+      'uniform mat4 Vmatrix;'+
+      'uniform mat4 Mmatrix;'+
+			"void main(){gl_Position=Pmatrix*Vmatrix*Mmatrix*vec4(vertex_position,2)+translation;vColor=vertex_color;}";
+		var fragSource = "varying lowp vec4 vColor;" +
+			"void main(){gl_FragColor=vColor;}"
+		var shaderProgram = initProgram(gl, vertexSource, fragSource);
+		var position = [
+			0.5, 0.5, 0.5, 0.5,-0.5, 0.5, -0.5,-0.5, 0.5, -0.5, 0.5, 0.5,    //前
+			0.5, 0.5, -0.5, 0.5,-0.5, -0.5, -0.5,-0.5, -0.5, -0.5, 0.5, -0.5,//后
+			0.5, 0.5, 0.5, 0.5,-0.5,0.5, 0.5,-0.5,-0.5, 0.5,0.5,-0.5,        //右
+			-0.5, 0.5, 0.5, -0.5,-0.5,0.5, -0.5,-0.5,-0.5, -0.5,0.5,-0.5,    //左
+			0.5, 0.5, 0.5, -0.5,0.5,0.5, -0.5,0.5,-0.5, 0.5,0.5,-0.5,        //上
+			0.5, -0.5, 0.5, -0.5,-0.5,0.5, -0.5,-0.5,-0.5, 0.5,-0.5,-0.5,    //下
+		]
+		var indices = [
+			0, 1, 2, 0, 2, 3,
+			4, 5, 6, 4, 6, 7,
+			8, 9, 10, 8, 10, 11,
+			12, 13, 14, 12, 14, 15,
+			16, 17, 18, 16, 18, 19,
+			20, 21, 22, 20, 22, 23,
+		]
+		var vertex_buffer = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(position), gl.STATIC_DRAW);
+
+		var frag_buffer = gl.createBuffer();
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, frag_buffer);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+
+		var aVertexPosition = gl.getAttribLocation(shaderProgram, 'vertex_position');
+		gl.vertexAttribPointer(aVertexPosition, 3, gl.FLOAT, false, 0, 0);
+		gl.enableVertexAttribArray(aVertexPosition);
+		
+		var color=[
+			0,0,1,1, 0,0,1,1, 0,0,1,1, 0,0,1,1,
+			1,0,0,1, 1,0,0,1, 1,0,0,1, 1,0,0,1,
+			1,1,0,1, 1,1,0,1, 1,1,0,1, 1,1,0,1,
+			1,0,1,1, 1,0,1,1, 1,0,1,1, 1,0,1,1,
+			1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1,
+			0,1,1,1, 0,1,1,1, 0,1,1,1, 0,1,1,1,
+		]
+		var color_buffer=gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER,color_buffer);
+		gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(color),gl.STATIC_DRAW);
+		
+		var aVertexColor=gl.getAttribLocation(shaderProgram,'vertex_color');
+		gl.vertexAttribPointer(aVertexColor,4,gl.FLOAT,false,0,0);
+		gl.enableVertexAttribArray(aVertexColor);
+		function get_projection(angle, a, zMin, zMax) {
+	    var ang = Math.tan((angle*.5)*Math.PI/180);//angle*.5
+	    return [
+	       0.5/ang, 0 , 0, 0,
+	       0, 0.5*a/ang, 0, 0,
+	       0, 0, -(zMax+zMin)/(zMax-zMin), -1,
+	       0, 0, (-2*zMax*zMin)/(zMax-zMin), 0 
+	    ];
+	  }
+		var proj_matrix = get_projection(40, canvas.width/canvas.height, 1, 100);
+    var mov_matrix = [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+    var view_matrix = [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+
+    // translating z
+    view_matrix[14] = view_matrix[14]-2;//zoom
+
+    /*==================== Rotation ====================*/
+
+    function rotateZ(m, angle) {
+	    var c = Math.cos(angle);
+	    var s = Math.sin(angle);
+	    var mv0 = m[0], mv4 = m[4], mv8 = m[8];
+	    m[0] = c*m[0]-s*m[1];
+	    m[4] = c*m[4]-s*m[5];
+	    m[8] = c*m[8]-s*m[9];
+	
+	    m[1]=c*m[1]+s*mv0;
+	    m[5]=c*m[5]+s*mv4;
+	    m[9]=c*m[9]+s*mv8;
+    }
+
+		function rotateX(m, angle) {
+	    var c = Math.cos(angle);
+	    var s = Math.sin(angle);
+	    var mv1 = m[1], mv5 = m[5], mv9 = m[9];
+	    m[1] = m[1]*c-m[2]*s;
+	    m[5] = m[5]*c-m[6]*s;
+	    m[9] = m[9]*c-m[10]*s;
+	
+	    m[2] = m[2]*c+mv1*s;
+	    m[6] = m[6]*c+mv5*s;
+	    m[10] = m[10]*c+mv9*s;
+		}
+
+	  function rotateY(m, angle) {
+	    var c = Math.cos(angle);
+	    var s = Math.sin(angle);
+	    var mv0 = m[0], mv4 = m[4], mv8 = m[8];
+	    m[0] = c*m[0]+s*m[2];
+	    m[4] = c*m[4]+s*m[6];
+	    m[8] = c*m[8]+s*m[10];
+	
+	    m[2] = c*m[2]-s*mv0;
+	    m[6] = c*m[6]-s*mv4;
+	    m[10] = c*m[10]-s*mv8;
+	  }
+	    
+		
+		var date=new Date();
+		var time=date.getTime();
+		
+		var drawInit=function(){
+			var height=gl.canvas.height;
+			var width=gl.canvas.width;
+			var curdate=new Date();
+			var curtime=curdate.getTime();
+			var offtime=curtime-time;
+			var x=offtime/(width*1000.0)*100;
+			var y=offtime/(height*1000.0)*100;
+			draw(gl,x,y,0,offtime);
+			if(offtime<5000){
+				requestAnimationFrame(drawInit);
+			}
+		}
+		drawInit();
+		function draw(gl,Tx,Ty,Tz,offtime) {
+			var Pmatrix = gl.getUniformLocation(shaderProgram, "Pmatrix");
+	    var Vmatrix = gl.getUniformLocation(shaderProgram, "Vmatrix");
+	    var Mmatrix = gl.getUniformLocation(shaderProgram, "Mmatrix");
+	    rotateZ(mov_matrix, offtime*0.000005);//time
+	    rotateY(mov_matrix, offtime*0.000002);
+	    rotateX(mov_matrix, offtime*0.000003);
+	    gl.uniformMatrix4fv(Pmatrix, false, proj_matrix);
+	    gl.uniformMatrix4fv(Vmatrix, false, view_matrix);
+	    gl.uniformMatrix4fv(Mmatrix, false, mov_matrix);
+	        
+			var translation = gl.getUniformLocation(shaderProgram, 'translation');
+			if(!translation) {
+				console.log('Failed to get the storage location of u_Translation');
+			}
+			gl.uniform4f(translation, Tx, Ty, Tz, 0.0);
+
+			gl.clearColor(0, 0, 0, 1);
+			gl.enable(gl.DEPTH_TEST);
+
+			gl.clear(gl.COLOR_BUFFER_BIT);
+			gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
+			
+		}
+
+		//		gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+		function initProgram(gl, vertexSource, fragSource) {
+			var vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexSource);
+			var fragShader = createShader(gl, gl.FRAGMENT_SHADER, fragSource);
+			var shaderProgram = gl.createProgram();
+			gl.attachShader(shaderProgram, vertexShader);
+			gl.attachShader(shaderProgram, fragShader);
+			gl.linkProgram(shaderProgram);
+			if(!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+				console.log("fail" + gl.getProgramInfoLog(shaderProgram))
+				gl.deleteProgram(shaderProgram);
+				return null;
+			}
+			console.log("success")
+			gl.useProgram(shaderProgram);
+			return shaderProgram;
+		}
+
+		function createShader(gl, type, source) {
+			var shader = gl.createShader(type);
+			gl.shaderSource(shader, source);
+			gl.compileShader(shader);
+			if(!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+				console.log("fail" + gl.getShaderInfoLog(shader))
+				gl.deleteShader(shader);
+
+				return null;
+			}
+			return shader;
+		}
+	</script>
+
+</html>
